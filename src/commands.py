@@ -1,2 +1,0 @@
-
-# Discord Cog - handle commands
