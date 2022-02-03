@@ -2,9 +2,9 @@
     "games": [
         {
             "title": "Guessing Game",
-            "alias": "guess",
+            "ref": "guess",
             "source": "games/guessing_game",
-            "start": "guessing_game.py"
+            "object": "guessing_game.GuessingGame"
         }
     ]
 }
