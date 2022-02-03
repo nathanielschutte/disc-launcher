@@ -32,9 +32,9 @@ def main() -> int:
 
     check_env()
 
-    from bot.launcher import Runner
-    bot = Runner()
-    return bot.run()
+    from bot.runner import Runner
+    runner = Runner()
+    return runner.run()
 
 if __name__ == '__main__':
     log('Exited with code', main())
