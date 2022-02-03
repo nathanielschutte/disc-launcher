@@ -6,3 +6,5 @@ deploy_tracker
 __pycache__
 */__pycache__
 */__pycache__/*
+
+.gitconfig
