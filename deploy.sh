@@ -107,10 +107,9 @@ if [[ ${#FILES[@]} -eq 0 ]]; then
     exit 0
 fi
 
-printf "\nStarting deploy...\n"
-
-printf "Path local: $LOCAL_MAP/\n"
-printf "Path remote: $REMOTE_MAP/\n"
+[[ $V_SPEC == 'true' ]] && printf "\nStarting deploy...\n"
+[[ $V_SPEC == 'true' ]] && printf "Path local: $LOCAL_MAP/\n"
+[[ $V_SPEC == 'true' ]] && printf "Path remote: $REMOTE_MAP/\n"
 printf "Starting transfer to $REMOTE_USER@$REMOTE_HOST:$REMOTE_MAP/...\n"
 idx=0
 for file in ${FILES[@]}; do
