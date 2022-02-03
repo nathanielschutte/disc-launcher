@@ -19,9 +19,10 @@ def log(*msgs):
 
 def check_env() -> None:
     log('Checking bot environment...')
+    from bot.tools.util import path_resolve
     try:
         for dir in required_dirs:
-            assert os.path.isdir(dir), f'directory not found: {dir}'
+            assert os.path.isdir(path_resolve(dir)), f'directory not found: {dir}'
     except AssertionError as e:
         log(f'Environment error: {e}')
         exit(1)
