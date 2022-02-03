@@ -90,6 +90,7 @@ class Config(metaclass=Singleton):
         self.log_file = config.get('logging', 'file', fallback='out.log')
         self.log_name = config.get('logging', 'name', fallback='bot')
         self.log_showname = config.getint('logging', 'name_disable', fallback=0) == 0
+        self.stdout = config.getint('logging', 'stdout_disable', fallback=1) == 0
 
         # Command help
         self.help = {}

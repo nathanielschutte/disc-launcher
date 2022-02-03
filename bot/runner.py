@@ -21,7 +21,7 @@ class Runner:
         config = Config()
 
         # first-time logger setup
-        logger = self.__get_logger(config.log_name, level=config.log_level, showname=config.log_showname)
+        logger = self.__get_logger(config.log_name, level=config.log_level, showname=config.log_showname, stdout=config.stdout)
 
         logger.info('Starting...')
         logger.info(f'Loaded games: {", ".join(config.game_lib.keys())}')
@@ -53,7 +53,7 @@ class Runner:
 
 
     # Create logger and configure
-    def __get_logger(self, name, level=logging.INFO, showname=False):
+    def __get_logger(self, name, level=logging.INFO, showname=False, stdout=True):
         logger = logging.getLogger(name)
         logger.setLevel(level)
 
@@ -68,7 +68,9 @@ class Runner:
         console_handle.setFormatter(formatter)
         file_handle.setFormatter(formatter)
 
-        logger.addHandler(console_handle)
+        if stdout:
+            logger.addHandler(console_handle)
+
         logger.addHandler(file_handle)
 
         return logger
