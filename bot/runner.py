@@ -23,6 +23,7 @@ class Runner:
         # first-time logger setup
         logger = self.__get_logger(config.log_name, level=config.log_level, showname=config.log_showname)
 
+        logger.info('Starting...')
         logger.info(f'Loaded games: {", ".join(config.game_lib.keys())}')
 
         logger.debug('Creating bot...')
@@ -38,7 +39,7 @@ class Runner:
         # run bot coroutines
         loop = asyncio.get_event_loop()
         try:
-            logger.info('Starting...')
+            logger.info('Waking up bot...')
             loop.run_until_complete(bot.start(token))
         except KeyboardInterrupt:
             logger.debug('Signal to stop bot!')
