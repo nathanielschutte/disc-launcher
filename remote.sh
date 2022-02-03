@@ -54,14 +54,12 @@ fi
 
 # Remote run
 run() {
-    #ssh $REMOTE_USER@$REMOTE_HOST -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "sudo su - -c 'python3 $REMOTE_MAP/$REMOTE_ENTRY &'"
-    return
+    ssh $REMOTE_USER@$REMOTE_HOST -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "sudo su - -c 'python3 $REMOTE_MAP/$REMOTE_ENTRY'"
 }
 
 # Remote stop python3 process
 stop() {
-    #ssh $REMOTE_USER@$REMOTE_HOST -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "sudo su - -c 'kill $(ps -a | grep python3 | cut -d \' \' -f1)'"
-    return
+    ssh $REMOTE_USER@$REMOTE_HOST -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "sudo su - -c 'kill $(ps -ah | grep "python3 run.py" | cut -d \' \' -f1)'"
 }
 
 # SCP deploy
