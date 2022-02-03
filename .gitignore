@@ -1,3 +1,4 @@
 .env
 out.log
 *.log
+deploy_tracker
