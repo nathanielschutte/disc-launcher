@@ -38,4 +38,4 @@ def main() -> int:
     return runner.run()
 
 if __name__ == '__main__':
-    log('Exited with code', main())
+    log('Exited with code', str(main()))
