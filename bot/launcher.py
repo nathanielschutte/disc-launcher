@@ -1,79 +1,62 @@
 
-# Game launcher - handle games
+# Game launcher - handle games for a discord server
 
-import os, logging, asyncio
+import logging
 
-from discord.ext import commands
-from dotenv import load_dotenv
-
-from bot.tools.util import path_resolve
-from .commands import Games
 from .config import Config
+from .exceptions import GameAlreadyRunningException, InvalidGameException
 
 
+class DiscGameData:
+    def __init__(self, admin, data) -> None:
+        
+        self.admin = admin
+        self.data = data
+
+        self.game = None
 
 class DiscLauncher:
     
     def __init__(self) -> None:
-        pass
+        
+        self.config = Config()
+        self.logger = logging.getLogger(self.config.log_name)
 
-    def test(self):
-        print('hello')
+        # Game data per channel
+        self.games = {} # channel_id: DiscGame
 
+    def get_all_games(self):
+        return self.games
 
-
-class Runner:
-
-    def __init__(self) -> None:
-        pass
-
-    def run(self):
-
-        config = Config()
-        launcher = DiscLauncher()
-
-        logger = self.__get_logger(config.log_name, config.log_showname)
-
-        logger.debug('Loading env and config...')
-
-        load_dotenv()
-        token = os.getenv('BOT_TOKEN')
-
-        bot = commands.Bot(command_prefix=config.bot_prefix)
-
-        bot.add_cog(Games(bot, launcher))
-
-        # Run bot coroutines
-        loop = asyncio.get_event_loop()
-        try:
-            logger.info('Starting...')
-            loop.run_until_complete(bot.start(token))
-        except KeyboardInterrupt:
-            logger.debug('Signal to stop bot, closing...')
-            loop.run_until_complete(bot.close())
-
-        logger.debug('Closed bot and event loop')
-        logger.info('Exiting\n\n')
-
-        return 0
-
-
-    def __get_logger(self, name, showname):
-        logger = logging.getLogger(name)
-        logger.setLevel(logging.DEBUG)
-
-        console_handle = logging.StreamHandler()
-        console_handle.setLevel(logging.DEBUG)
-        file_handle = logging.FileHandler(path_resolve('out.log', force_exists=False), encoding='utf-8')
-
-        if showname:
-            formatter = logging.Formatter('%(asctime)s - %(name)s [%(levelname)s] |   %(message)s')
+    def get_game(self, channel_id):
+        if channel_id in self.games:
+            return self.games[channel_id]
         else:
-            formatter = logging.Formatter('%(asctime)s [%(levelname)s] |   %(message)s')
-        console_handle.setFormatter(formatter)
-        file_handle.setFormatter(formatter)
+            return None
+    
+    def library(self):
+        return self.config.game_lib
 
-        logger.addHandler(console_handle)
-        logger.addHandler(file_handle)
+    def valid_game_ref(self, game_ref):
+        return game_ref in self.library()
 
-        return logger
+
+    # Events from bot
+    def start_game(self, channel_id, user_id, game_ref):
+
+        # check for existing game
+        if self.get_game(channel_id) is not None:
+            raise GameAlreadyRunningException(f'Channel {channel_id} has a game already running')
+
+        # check if the game exists in library
+        if not self.valid_game_ref(game_ref):
+            raise InvalidGameException(None)
+
+        # set game data
+        game_data = self.library()[game_ref]
+        self.games[channel_id] = DiscGameData(user_id, game_data)
+
+        self.logger.debug(f'Starting game \'{game_ref}\' in channel {channel_id} [source: {game_data["source"]}, object: {game_data["object"]}]')
+
+
+        #cls = getattr(import_module('my_module'), 'my_class')
