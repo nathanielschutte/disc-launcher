@@ -1,0 +1,10 @@
+{
+    "games": [
+        {
+            "title": "Guessing Game",
+            "alias": "guess",
+            "source": "games/guessing_game",
+            "start": "guessing_game.py"
+        }
+    ]
+}
