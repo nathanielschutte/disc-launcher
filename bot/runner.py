@@ -7,7 +7,7 @@ from discord.ext import commands
 from dotenv import load_dotenv
 
 from bot.tools.util import path_resolve
-from .commands import Games
+from .commands import Games, GamesHelp
 from .config import Config
 
 class Runner:
@@ -22,7 +22,7 @@ class Runner:
 
         # first-time logger setup
         logger = self.__get_logger(config.log_name, level=config.log_level, showname=config.log_showname, stdout=config.stdout)
-
+    
         logger.info('Starting...')
         logger.info(f'Loaded games: {", ".join(config.game_lib.keys())}')
 
@@ -33,7 +33,7 @@ class Runner:
         token = os.getenv('BOT_TOKEN')
 
         # create bot
-        bot = commands.Bot(command_prefix=config.bot_prefix)
+        bot = commands.Bot(command_prefix=config.bot_prefix, help_command=GamesHelp())
         bot.add_cog(Games(bot))
 
         # run bot coroutines
@@ -44,6 +44,8 @@ class Runner:
         except KeyboardInterrupt:
             logger.debug('Signal to stop bot!')
             loop.run_until_complete(bot.close())
+        except Exception as e:
+            logger.error(f'Exception: {str(e)}')
 
         # close and exit
         logger.debug('Closed bot and event loop.')

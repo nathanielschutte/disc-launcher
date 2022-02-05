@@ -6,14 +6,17 @@ import logging
 from .config import Config
 from .exceptions import GameAlreadyRunningException, InvalidGameException
 
+class DiscGameInstance:
+    ''''''
 
-class DiscGameData:
-    def __init__(self, admin, data) -> None:
+    def __init__(self, title, admin, data) -> None:
         
+        self.title
         self.admin = admin
         self.data = data
 
         self.game = None
+
 
 class DiscLauncher:
     
@@ -25,8 +28,12 @@ class DiscLauncher:
         # Game data per channel
         self.games = {} # channel_id: DiscGame
 
+
+    # ===========================================
+    # Launcher attributes
     def get_all_games(self):
         return self.games
+
 
     def get_game(self, channel_id):
         if channel_id in self.games:
@@ -34,13 +41,16 @@ class DiscLauncher:
         else:
             return None
     
+
     def library(self):
         return self.config.game_lib
+
 
     def valid_game_ref(self, game_ref):
         return game_ref in self.library()
 
 
+    # ===========================================
     # Events from bot
     def start_game(self, channel_id, user_id, game_ref):
 
@@ -54,7 +64,7 @@ class DiscLauncher:
 
         # set game data
         game_data = self.library()[game_ref]
-        self.games[channel_id] = DiscGameData(user_id, game_data)
+        self.games[channel_id] = DiscGameInstance(user_id, game_data)
 
         self.logger.debug(f'Starting game \'{game_ref}\' in channel {channel_id} [source: {game_data["source"]}, object: {game_data["object"]}]')
 

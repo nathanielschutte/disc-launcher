@@ -3,14 +3,13 @@
 
 import os, sys
 
-def main():
-    print('hello')
-
+# affects run script output only
 verbose = '-v' in sys.argv
 
+# 
 required_dirs = [
     'bot',
-    'config'
+    'config/bot'
 ]
 
 def log(*msgs):
@@ -22,6 +21,7 @@ def check_env() -> None:
     from bot.tools.util import path_resolve
     try:
         for dir in required_dirs:
+            print(f'Checking {path_resolve(dir)}...')
             assert os.path.isdir(path_resolve(dir)), f'directory not found: {dir}'
     except AssertionError as e:
         log(f'Environment error: {e}')
