@@ -9,11 +9,13 @@ from .exceptions import GameAlreadyRunningException, InvalidGameException
 class DiscGameInstance:
     ''''''
 
-    def __init__(self, title, admin, data) -> None:
+    def __init__(self, host, data) -> None:
         
-        self.title
-        self.admin = admin
-        self.data = data
+        self.host = host
+        self.title = data['title']
+        self.ref = data['ref']
+        self.source = data['source']
+        self.object = data['object']
 
         self.game = None
 
@@ -35,7 +37,7 @@ class DiscLauncher:
         return self.games
 
 
-    def get_game(self, channel_id):
+    def get_game(self, channel_id) -> DiscGameInstance:
         if channel_id in self.games:
             return self.games[channel_id]
         else:
@@ -52,6 +54,8 @@ class DiscLauncher:
 
     # ===========================================
     # Events from bot
+
+    # Start a new game
     def start_game(self, channel_id, user_id, game_ref):
 
         # check for existing game
@@ -70,3 +74,19 @@ class DiscLauncher:
 
 
         #cls = getattr(import_module('my_module'), 'my_class')
+    
+
+    # End existing game
+    def end_game(self, channel_id, user_id):
+
+        # check for existing game
+        if self.get_game(channel_id) is None:
+            self.logger.debug(f'Ending game: no game to end')
+            
+        del self.games[channel_id]
+
+        
+
+    # Handle game message for existing game
+    def game_message(self, channel_id, user_id, msg):
+        pass

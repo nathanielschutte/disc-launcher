@@ -41,13 +41,6 @@ class Games(commands.Cog):
         else:
             self.logger.warning(f'Server \'{server}\' tried to use this bot!')
 
-    # Get help string for command
-    def __gethelp(self, cmd):
-        if cmd in self.config.help:
-            return self.config.help[cmd]
-        else:
-            return ''
-
 
     # ===========================================
     # General listeners
@@ -60,6 +53,20 @@ class Games(commands.Cog):
         if not self.__validate(msg.guild.name):
             return
         #self.logger.debug(f'Received message from {msg.author.name}: {msg.content}')
+
+        # intercept game messages
+        if msg.guild.id in self.launchers:
+            if self.launchers[msg.guild.id].get_game(msg.channel.id):
+
+                # handle non-bot commands
+                if not msg.content.strip().startswith(self.config.bot_prefix):
+
+                    # send message along to launcher
+                    self.launchers[msg.guild.id].game_message(msg.channel.id, msg.author.id, msg.content)
+                    self.logger.debug(f'GAME MSG| server: {msg.guild.name} channel: {msg.channel.id} | {msg.content}')    
+                
+                # remove the message
+                await msg.delete()
 
 
     # ===========================================
@@ -94,7 +101,19 @@ class Games(commands.Cog):
 
     @commands.command()
     async def end(self, ctx):
-        pass
+        if not self.__validate(ctx.guild.name):
+            return
+
+        # Check for launcher
+        if ctx.guild.id not in self.launchers:
+            self.logger.debug(f'No existing launcher for guild \'{ctx.guild.name}\' - do nothing')
+            return
+
+        launcher: DiscLauncher = self.launchers[ctx.guild.id]
+        self.logger.debug(f'Attempting to end game in channel {ctx.channel.id}: {launcher.get_game(ctx.channel.id).title}')
+
+        launcher.end_game(ctx.channel.id, ctx.author.id)
+
 
     @commands.command()
     async def join(self, ctx):
