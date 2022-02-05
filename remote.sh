@@ -44,7 +44,7 @@ done
 # Check connection
 printf "Connecting to $REMOTE_HOST..."
 connected='false'
-$(ssh -q $REMOTE_USER@$REMOTE_HOST exit) && connected='true'
+$(ssh -q -i $KEY_LOC $REMOTE_USER@$REMOTE_HOST exit) && connected='true'
 if [[ $connected == 'false' ]]; then
     printf "failed.\n"
     exit 1
