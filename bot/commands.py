@@ -2,7 +2,9 @@
 # Discord Cog - handle commands
 
 import logging
+from pydoc import describe
 
+import discord
 from discord.ext import commands
 
 from bot.launcher import DiscLauncher
@@ -104,7 +106,8 @@ class Games(commands.Cog):
 
     @commands.command()
     async def list(self, ctx):
-        pass
+        game_list = self.config.game_lib.keys()
+        await ctx.send('Games: ' + ', '.join(game_list))
 
 
 
@@ -139,10 +142,11 @@ class GamesHelp(commands.HelpCommand):
                     if len(cmdinfo['aliases']) > 0:
                         astr = '(' + ' | '.join(cmdinfo['aliases']) + ')'
 
-                    cmdlist.append(f'{" "*self.indent}{cmd.name} {astr}{" "*self.indent}|{" "*self.indent}{cmdinfo["desc"]}{" "*self.indent}|{" "*self.indent}usage: {cmd.name} {cmdinfo["usage"]}')
+                    cmdlist.append(f'{" "*self.indent}{cmd.name} {astr}: {" "*self.indent}{cmdinfo["desc"]}{" "*self.indent}|{" "*self.indent}usage: {cmd.name} {cmdinfo["usage"]}')
                 
                 cmdstr = '\n'.join(cmdlist)
-                await self.get_destination().send(f'{self.config.bot_title}:\n{cmdstr}')
+                embed = discord.Embed(title=f'{self.config.bot_title} help:', description=cmdstr)
+                await self.get_destination().send(embed=embed)
 
     async def send_cog_help(self, cog):
         return await super().send_cog_help(cog)
