@@ -1,0 +1,12 @@
+{
+    "play": {
+        "aliases": ["start", "p"],
+        "desc": "Start a new game",
+        "usage": "[game]"
+    },
+    "quit": {
+        "aliases": ["exit", "q"],
+        "desc": "End the current game",
+        "usage": ""
+    }
+}

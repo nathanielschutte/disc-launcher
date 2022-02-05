@@ -40,7 +40,7 @@ class Config(metaclass=Singleton):
             else:
                 raise ConfigLoadError(f'Config file not found: {self.file}')
 
-        self.aliases = {} # command: [aliases]
+        self.commands = {} # command: [aliases, desc, usage]
         self.whitelist = [] # [servers]
 
         # Propogate load errors
@@ -48,8 +48,8 @@ class Config(metaclass=Singleton):
             # Load config
             self.__load_config()
 
-            # Load aliases
-            self.__load_aliases()
+            # Load command aliases and help
+            self.__load_commands()
 
             # Load server whitelist
             self.__load_whitelist()
@@ -60,7 +60,7 @@ class Config(metaclass=Singleton):
         except ConfigLoadError as e:
             raise ConfigLoadError(str(e))
         except Exception as e:
-            raise ConfigLoadError(f'uncaught: {str(e)}')
+            raise ConfigLoadError(f'uncaught {type(e)}: {str(e)}')
 
 
     def __load_config(self):
@@ -72,10 +72,13 @@ class Config(metaclass=Singleton):
 
         # Bot config
         self.bot_prefix = config.get('bot', 'prefix', fallback='!')
+        self.bot_title = config.get('bot', 'title', fallback='Games')
+        self.bot_name = config.get('bot', 'name', fallback='Games')
+        self.bot_activity = config.get('bot', 'activity', fallback='')
 
         # Command aliases config
         self.use_aliases = config.getint('bot', 'aliases_disable', fallback=0) == 0
-        self.alias_file = path_resolve(config.get('bot', 'aliase_file', fallback='config/bot/aliases.json'), force_exists=False)
+        self.commands_file = path_resolve(config.get('bot', 'commands_file', fallback='config/bot/aliases.json'), force_exists=False)
 
         # Server whitelist config
         self.use_whitelist = config.getint('bot', 'whitelist_disable', fallback=0) == 0
@@ -92,15 +95,32 @@ class Config(metaclass=Singleton):
         self.log_showname = config.getint('logging', 'name_disable', fallback=0) == 0
         self.stdout = config.getint('logging', 'stdout_disable', fallback=1) == 0
 
-        # Command help
-        self.help = {}
-        if config.has_section('help'):
-            for opt in config.options('help'):
-                self.help[opt] = config.get('help', opt, fallback='')
-
     
-    def __load_aliases(self):
-        pass
+    def __load_commands(self):
+        
+        if not os.path.isfile(self.commands_file):
+            raise ConfigLoadError(f'Commands error: no file \'{self.commands_file}\'')
+
+        with open(self.commands_file, 'r') as file:
+            content = file.read()
+            try:
+                commands = json.loads(content)
+            except json.JSONDecodeError:
+                raise ConfigLoadError(f'Commands file error: could not parse \'{self.commands_file}\'')
+            for command, info in commands.items():
+                if command not in self.commands:
+                    self.commands[command] = {
+                        'aliases': [],
+                        'desc': '',
+                        'usage': ''
+                    }
+                if 'aliases' in info and isinstance(info['aliases'], list):
+                    self.commands[command]['aliases'] = info['aliases']
+                if 'desc' in info:
+                    self.commands[command]['desc'] = info['desc']
+                if 'usage' in info:
+                    self.commands[command]['usage'] = info['usage']
+
 
     def __load_whitelist(self):
 
@@ -110,6 +130,7 @@ class Config(metaclass=Singleton):
         with open(self.whitelist_file, 'r') as file:
             for server in file.readlines():
                 self.whitelist.append(server.strip())
+
 
     def __load_games(self):
 
