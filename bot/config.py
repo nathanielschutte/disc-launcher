@@ -18,6 +18,7 @@ LOG_LEVEL = {
 }
 
 # Required fields for game library entries
+LIB_REQ = {'path'}
 GAME_REQ = {'source', 'object', 'title'}
 
 # Config data
@@ -144,11 +145,29 @@ class Config(metaclass=Singleton):
             except json.JSONDecodeError:
                 raise ConfigLoadError(f'Game library error: could not parse \'{self.game_file}\'')
 
+            # get library config
+            if 'library' in game_lib and isinstance(game_lib['library'], dict):
+                self.game_lib_config = {}
+
+                # check required 'library' fields
+                diff = LIB_REQ.difference(set(game_lib['library'].keys()))
+                if len(diff) > 0:
+                    raise GameLoadError(f'Game library info missing required fields: {diff}')
+                
+                # guaranteed fields
+                self.game_lib_config['path'] = game_lib['library']['path']
+
+            else:
+                raise ConfigLoadError(f'Game library error: no library info in \'{self.game_file}\'')
+
+
             # create game library struct
             if 'games' in game_lib and isinstance(game_lib['games'], list):
                     self.game_lib = {}
+
                     for entry in game_lib['games']:
-                        
+
+                        # check required 'game' entry fields    
                         diff = GAME_REQ.difference(set(entry.keys()))
                         if len(diff) > 0:
                             raise GameLoadError(f'Game library entry missing required fields: {diff}')

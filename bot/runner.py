@@ -39,11 +39,15 @@ class Runner:
         # run bot coroutines
         loop = asyncio.get_event_loop()
         try:
-            logger.info('Waking up bot...')
+            logger.info(f'Waking up bot with prefix \'{config.bot_prefix}\'...')
             loop.run_until_complete(bot.start(token))
+
+        # signal interrupts should kill it
         except KeyboardInterrupt:
             logger.debug('Signal to stop bot!')
             loop.run_until_complete(bot.close())
+
+        # anything else unknown
         except Exception as e:
             logger.error(f'Exception: {str(e)}')
 

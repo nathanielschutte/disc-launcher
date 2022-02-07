@@ -81,11 +81,11 @@ class Games(commands.Cog):
             await ctx.send('Please specify the game you want to play.')
             return
 
-        game_ref = game[0]
+        game_ref = ' '.join(game)
 
         # Start up new launcher for this server
         if ctx.guild.id not in self.launchers:
-            self.logger.debug(f'No existing launcher for guild \'{ctx.guild.name}\' - creating launcher')
+            self.logger.info(f'No existing launcher for guild \'{ctx.guild.name}\' - creating launcher')
             self.launchers[ctx.guild.id] = DiscLauncher() 
 
         launcher: DiscLauncher = self.launchers[ctx.guild.id]
@@ -94,7 +94,7 @@ class Games(commands.Cog):
         try:
             launcher.start_game(ctx.channel.id, ctx.author.id, game_ref)
         except GameAlreadyRunningException as e:
-            self.logger.warning(str(e))
+            self.logger.debug(str(e))
         except InvalidGameException as e:
             await ctx.send(f'The game \'{game_ref}\' isn\'t in my library.')
             return
@@ -110,7 +110,7 @@ class Games(commands.Cog):
             return
 
         launcher: DiscLauncher = self.launchers[ctx.guild.id]
-        self.logger.debug(f'Attempting to end game in channel {ctx.channel.id}: {launcher.get_game(ctx.channel.id).title}')
+        self.logger.info(f'Attempting to end game in channel {ctx.channel.id}: {launcher.get_game(ctx.channel.id).title}')
 
         launcher.end_game(ctx.channel.id, ctx.author.id)
 

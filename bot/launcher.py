@@ -1,7 +1,7 @@
 
 # Game launcher - handle games for a discord server
 
-import logging
+import logging, importlib
 
 from .config import Config
 from .exceptions import GameAlreadyRunningException, InvalidGameException
@@ -31,6 +31,8 @@ class DiscLauncher:
         self.games = {} # channel_id: DiscGame
 
 
+
+
     # ===========================================
     # Launcher attributes
     def get_all_games(self):
@@ -42,7 +44,6 @@ class DiscLauncher:
             return self.games[channel_id]
         else:
             return None
-    
 
     def library(self):
         return self.config.game_lib
@@ -70,8 +71,9 @@ class DiscLauncher:
         game_data = self.library()[game_ref]
         self.games[channel_id] = DiscGameInstance(user_id, game_data)
 
-        self.logger.debug(f'Starting game \'{game_ref}\' in channel {channel_id} [source: {game_data["source"]}, object: {game_data["object"]}]')
+        self.logger.info(f'Starting game \'{game_ref}\' in channel {channel_id} [source: {game_data["source"]}, object: {game_data["object"]}]')
 
+        
 
         #cls = getattr(import_module('my_module'), 'my_class')
     
@@ -82,7 +84,7 @@ class DiscLauncher:
         # check for existing game
         if self.get_game(channel_id) is None:
             self.logger.debug(f'Ending game: no game to end')
-            
+
         del self.games[channel_id]
 
         
@@ -90,3 +92,4 @@ class DiscLauncher:
     # Handle game message for existing game
     def game_message(self, channel_id, user_id, msg):
         pass
+    
