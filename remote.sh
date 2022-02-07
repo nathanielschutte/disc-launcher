@@ -142,7 +142,7 @@ deploy() {
         # check if failed, maybe dir doesn't exist
         if [[ $? -ge 1 ]]; then
             printf "Creating non-existant dir: ${file%/*}\n"
-            ssh $REMOTE_USER@$REMOTE_HOST -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "mkdir -p $REMOTE_MAP/${file%/*}"
+            ssh -i $KEY_LOC $REMOTE_USER@$REMOTE_HOST -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "mkdir -p $REMOTE_MAP/${file%/*}"
 
             # try again with dir created
             scp -i $KEY_LOC -q $LOCAL_MAP/$file $REMOTE_USER@$REMOTE_HOST:$REMOTE_MAP/$file
