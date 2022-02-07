@@ -1,4 +1,7 @@
 {
+    "library": {
+        "path": "C:/Users/Nate/Documents/repos/disc-launcher/games"
+    },
     "games": [
         {
             "title": "Guessing Game",
