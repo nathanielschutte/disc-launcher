@@ -1,12 +1,17 @@
 {
     "play": {
-        "aliases": ["start", "p"],
+        "aliases": ["start"],
         "desc": "Start a new game",
-        "usage": "[game]"
+        "usage": "[game]",
+        "permission": "any"
     },
-    "quit": {
-        "aliases": ["exit", "q"],
+    "end": {
+        "aliases": ["stop"],
         "desc": "End the current game",
-        "usage": ""
+        "usage": "",
+        "permission": "any"
+    },
+    "reload": {
+        "permission": "admin"
     }
 }

@@ -7,6 +7,8 @@ from discord.ext import commands
 from dotenv import load_dotenv
 
 from bot.tools.util import path_resolve
+from bot.tools import events
+from .exceptions import ConfigLoadError
 from .commands import Games, GamesHelp
 from .config import Config
 
@@ -17,8 +19,12 @@ class Runner:
 
     def run(self):
 
-        # first (and only) config load
-        config = Config()
+        # first (and only) config instance
+        try:
+            config = Config()
+        except ConfigLoadError as e:
+            print(f'Issue loading config!  {str(e)}')
+            return 1
 
         # first-time logger setup
         logger = self.__get_logger(config.log_name, level=config.log_level, showname=config.log_showname, stdout=config.stdout)

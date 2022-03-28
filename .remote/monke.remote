@@ -1,0 +1,10 @@
+host=monkechat.com
+port=22
+user=deploy-user
+identity-file=/cygdrive/c/Users/Nate/.ssh/aws-access.pem
+ignore-dot-dirs=1
+ignore-dot-files=1
+ignore-files=
+ignore-dirs=
+local-path=
+remote-path=/var/www/code/bots/disclauncher

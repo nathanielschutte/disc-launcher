@@ -1,7 +1,7 @@
 
 # Store config values
 
-import os, shutil, logging, json
+import os, sys, shutil, logging, json, importlib
 import configparser
 
 from bot.exceptions import ConfigLoadError, GameLoadError
@@ -19,18 +19,24 @@ LOG_LEVEL = {
 
 # Required fields for game library entries
 LIB_REQ = {'path'}
-GAME_REQ = {'source', 'object', 'title'}
+GAME_REQ = {'path', 'class', 'ref'}
 
 # Config data
 class Config(metaclass=Singleton):
 
     def __init__(self, file=None) -> None:
-        
+        self.load(file=file)
+
+    def load(self, file=None) -> None:
+
         # Look for config file
         if file is None:
             file = 'config/bot/config.ini'
 
         self.file = path_resolve(file)
+
+        # guaranteed to exist, need this for references to the DiscGame lib
+        sys.path.append(path_resolve('discgame'))
 
         # Try to copy from template if not found
         if not os.path.isfile(self.file):
@@ -43,6 +49,8 @@ class Config(metaclass=Singleton):
 
         self.commands = {} # command: [aliases, desc, usage]
         self.whitelist = [] # [servers]
+        self.game_lib_config = {} # config game lib metadata
+        self.game_lib = {} # game library
 
         # Propogate load errors
         try:
@@ -59,7 +67,9 @@ class Config(metaclass=Singleton):
             self.__load_games()
 
         except ConfigLoadError as e:
-            raise ConfigLoadError(str(e))
+            raise ConfigLoadError(f'ConfigLoadError: {str(e)}')
+        except GameLoadError as e:
+            raise ConfigLoadError(f'GameLoadError: {str(e)}')
         except Exception as e:
             raise ConfigLoadError(f'uncaught {type(e)}: {str(e)}')
 
@@ -85,6 +95,11 @@ class Config(metaclass=Singleton):
         self.use_whitelist = config.getint('bot', 'whitelist_disable', fallback=0) == 0
         self.whitelist_file = path_resolve(config.get('bot', 'whitelist_file', fallback='config/bot/whitelist'), force_exists=False)
 
+        # Launcher params
+        self.launcher_idle_timeout = config.getint('bot', 'idle_timeout', fallback=60)
+
+        # Game config
+
         # Launcher config
         self.game_file = path_resolve(config.get('launcher', 'game_file', fallback='config/launcher/games.json'), force_exists=False)
 
@@ -108,19 +123,33 @@ class Config(metaclass=Singleton):
                 commands = json.loads(content)
             except json.JSONDecodeError:
                 raise ConfigLoadError(f'Commands file error: could not parse \'{self.commands_file}\'')
+
             for command, info in commands.items():
+
+                # Skip disabled commands
+                if 'disabled' in info and (info['disabled'] is True or info['disabled'] == 1):
+                    if command in self.commands:
+                        del self.commands[command]
+                    continue
+
+                # Add a new command entry
                 if command not in self.commands:
                     self.commands[command] = {
                         'aliases': [],
                         'desc': '',
-                        'usage': ''
+                        'usage': '',
+                        'permission': 'any'
                     }
+
+                # Populate command entry
                 if 'aliases' in info and isinstance(info['aliases'], list):
                     self.commands[command]['aliases'] = info['aliases']
                 if 'desc' in info:
                     self.commands[command]['desc'] = info['desc']
                 if 'usage' in info:
                     self.commands[command]['usage'] = info['usage']
+                if 'permission' in info:
+                    self.commands[command]['permission'] = info['permission']
 
 
     def __load_whitelist(self):
@@ -154,8 +183,15 @@ class Config(metaclass=Singleton):
                 if len(diff) > 0:
                     raise GameLoadError(f'Game library info missing required fields: {diff}')
                 
+                # make sure path exists
+                if not os.path.isdir(game_lib['library']['path']):
+                    raise GameLoadError(f'Game library path not found: {game_lib["library"]["path"]}')
+
                 # guaranteed fields
                 self.game_lib_config['path'] = game_lib['library']['path']
+
+                # add game library to path
+                sys.path.append(self.game_lib_config['path'])
 
             else:
                 raise ConfigLoadError(f'Game library error: no library info in \'{self.game_file}\'')
@@ -163,8 +199,6 @@ class Config(metaclass=Singleton):
 
             # create game library struct
             if 'games' in game_lib and isinstance(game_lib['games'], list):
-                    self.game_lib = {}
-
                     for entry in game_lib['games']:
 
                         # check required 'game' entry fields    
@@ -172,15 +206,45 @@ class Config(metaclass=Singleton):
                         if len(diff) > 0:
                             raise GameLoadError(f'Game library entry missing required fields: {diff}')
 
-                        # index by ref priority
-                        if 'ref' in entry:
+
+                        # check that the game's path exists
+                        if not os.path.isdir(os.path.join(self.game_lib_config['path'], entry['path'])):
+                            raise GameLoadError(f'Game ({entry["ref"]}) path not found: {entry["path"]}')
+
+
+                        # check for the game's object file
+                        object_file = entry['class'].strip().split('.')[0]
+                        object_class = entry['class'].strip().split('.')[1]
+
+                        if not os.path.isfile(f'{os.path.join(self.game_lib_config["path"], entry["path"], object_file)}.py'):
+                            raise GameLoadError(f'Game ({entry["ref"]}) object file not found: {object_file}')
+
+
+                        # attempt to load the game path and object
+                        module = None
+                        try:
+                            module = importlib.import_module(f'{entry["path"]}.{object_file}')
+                        except Exception as e:
+                            raise GameLoadError(f'Game ({entry["ref"]}) module could not be loaded: {str(e)}')
+                        
+                        # grab the entry DiscGame object
+                        cls = None
+                        if hasattr(module, object_class):
+                            cls = getattr(module, object_class)
+                        else:
+                            raise GameLoadError(f'Game ({entry["ref"]}) object could not be found: {object_class}')
+
+
+                        # add game to library
+                        if cls is not None:
                             self.game_lib[entry['ref']] = entry
-                        
-                        # or the full title
-                        elif 'title' in entry:
-                            self.game_lib[entry['title']] = entry
-                        
-                        # otherwise this entry is invalid
+                            self.game_lib[entry['ref']]['object'] = cls
+                        else:
+                            raise GameLoadError(f'Game ({entry["ref"]}) object could not be loaded: {object_class}')
+
+
+                        #print(f'loaded game {self.game_lib[entry["ref"]]["object"].__name__}')
+
             else:
                 self.game_lib = {}
 

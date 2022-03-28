@@ -1,50 +1,92 @@
 
-# Remote start/stop
 # SCP deploy script
 
 # ====================================
 # Remote config
 REMOTE_USER="deploy-user"
-REMOTE_HOST="monkechat.com"
-REMOTE_MAP="/var/www/code/bots/disclauncher"
-LOCAL_MAP="C:/Users/Nate/Documents/projects/repos/disc-launcher"
-KEY_LOC="C:/Users/Nate/.ssh/aws-access.pem"
-
-# Remote entry script
-REMOTE_ENTRY="run.py"
+REMOTE_HOST=""      # Set with -h.  Sets port to 22
+REMOTE_PORT=""      # Set with -p.  Sets host to localhost
+REMOTE_MAP=""       # Set with -o
+LOCAL_MAP=""        # Set with -f
+KEY_LOC="C:\\Users\\Nate\\.ssh\\aws-access.pem"
 
 # Internal files
-TRACKER_FILE='deploy_tracker'
+TRACKER_FILE='.deploy'
+REMOTE_FILE='.remote'
+
+# Specific files
+FILENAMES=""
 
 # Selection config
 IGNORE_DOT_DIRS='true'
 IGNORE_DOT_FILES='true'
-IGNORE_DIRS='__pycache__'
-IGNORE_FILES="remote.sh $TRACKER_FILE out.log"
+IGNORE_DIRS="__pycache__"
+IGNORE_FILES="$0"
 
 # Output
 V_SPEC='false'
+QUIET='false'
 # ====================================
 
-# TODO: remote upgrade
+# Arg descriptor
+ARGS="rvaiIh:p:qf:o:"
+
+# Capture script args
+EXE_ARGS="$@"
 
 # Get deploy options
-DEPLOY=0
-ACTION=0
-while getopts 'drsv' flag; do
+RECURSIVE=0     # deploy directory vs. specific files
+ALL=0           # deploy all despite checksums
+while getopts "$ARGS" flag; do
     case "${flag}" in
-        d) DEPLOY=1 ;;
-        r) ACTION=1 ;; # run
-        s) ACTION=2 ;; # stop
-        v) V_SPEC='true'
+        r)
+            RECURSIVE=1
+            ;;
+        v)
+            V_SPEC='true'
+            ;;
+        a)
+            ALL=1
+            ;;
+        i)
+            IGNORE_DOT_FILES=1
+            ;;
+        I)
+            IGNORE_DOT_DIRS=1
+            ;;
+        h)
+            REMOTE_HOST="$OPTARG"
+            REMOTE_PORT=22
+            ;;
+        p)
+            REMOTE_HOST="localhost"
+            REMOTE_PORT="$OPTARG"
+            ;;
+        q)
+            QUIET='true'
+            ;;
+        f)
+            LOCAL_MAP="${OPTARG%/}"
+            ;;
+        o)
+            REMOTE_MAP="${OPTARG%/}"
+            ;;
     esac
 done
 
+# Check key file
+printf "Checking key..."
+if [[ -r $KEY_LOC ]]; then
+    printf "ok.\n"
+else
+    printf "not found.\n"
+    exit 1
+fi
 
 # Check connection
 printf "Connecting to $REMOTE_HOST..."
 connected='false'
-$(ssh -q -i $KEY_LOC $REMOTE_USER@$REMOTE_HOST exit) && connected='true'
+$(ssh -q -i $KEY_LOC -p $REMOTE_PORT $REMOTE_USER@$REMOTE_HOST exit) && connected='true'
 if [[ $connected == 'false' ]]; then
     printf "failed.\n"
     exit 1
@@ -52,38 +94,94 @@ else
     printf "success!\n"
 fi
 
-# Remote run
-run() {
-    ssh $REMOTE_USER@$REMOTE_HOST -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "sudo su - -c 'python3 $REMOTE_MAP/$REMOTE_ENTRY'"
+# Usage
+usage() {
+    printf "Tracked directory deploy:\n\t$0 -r -f <local dir> -o <remote dir>"
+    exit 1
 }
 
-# Remote stop python3 process
-stop() {
-    ssh $REMOTE_USER@$REMOTE_HOST -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "sudo su - -c 'kill $(ps -ah | grep "python3 run.py" | cut -d \' \' -f1)'"
+# Deploy context
+context() {
+    printf "\nCONTEXT\n"
+    printf "Deploying to $REMOTE_USER@$REMOTE_HOST:$REMOTE_PORT\n"
+    printf "Local dir: $LOCAL_MAP\nRemote dir: $REMOTE_MAP\n"
+    printf "Ignore .dirs: $IGNORE_DOT_DIRS\n"
+    printf "Ignore .files: $IGNORE_DOT_FILES\n"
+    printf "Ignoring: $IGNORE_DIRS\n$IGNORE_FILES\n"
+    printf "\n"
 }
 
-# SCP deploy
-deploy() {
-
-    printf "Collecting files...\n"
-
-    # load current file hashes
-    declare -A track
-    if [[ -f $TRACKER_FILE ]]; then
-        while read -r line; do
-            if [[ -n $line ]]; then
-                parts=($line)
-                track[${parts[0]}]=${parts[1]}
+# SCP filename deploy
+deploy_f() {
+    for arg in $EXE_ARGS; do
+        is_flag='false'
+        flags=${ARGS/:/}
+        for (( i=0; i<${#flags}; i++ )); do
+            if [[ $arg == "-${flags:$i:1}" ]]; then
+                is_flag='true'
             fi
-        done < $TRACKER_FILE
-    else
-        touch $TRACKER_FILE
+        done
+        [[ $is_flag == 'true' ]] && continue
+        # Append local map path if exists
+        if [[ -n $LOCAL_MAP ]]; then
+            file="$LOCAL_MAP/$arg"
+        else
+            file=$arg
+        fi
+        # Try to append current dir if file not found
+        if [[ ! -f "$file" ]]; then
+            arg="$(pwd)/$file"
+            # otherwise skip this garbage
+            if [[ ! -f "$file" ]]; then
+                continue;
+            fi
+        fi
+        # Append to files list
+        if [[ ${#FILESNAMES} -eq 0 ]]; then
+            FILENAMES="$file"
+        else
+            FILENAMES="$FILENAMES $file"
+        fi
+    done
+
+    # Check for no files
+    if [[ ${#FILENAMES} -eq 0 ]]; then
+        printf "No files to deploy, exiting.\n"
+        exit 0
     fi
- 
+
+    # Deploy files
+    idx=1
+    for FILENAME in $FILENAMES; do
+        printf "[$idx] Transfering $FILENAME -> $REMOTE_MAP/$FILENAME...\n"
+        scp -q -P $REMOTE_PORT $FILENAME $REMOTE_USER@$REMOTE_HOST:$REMOTE_MAP/$FILENAME
+        idx=$((idx+1))
+    done
+}
+
+# SCP recursive directory deploy - tracking
+deploy_r() {
+
+    # load current file hashes - skip if -a (ALL) is set
+    if [[ $ALL -eq 0 ]]; then
+        printf "Collecting files...\n"
+        declare -A track
+        if [[ -f $TRACKER_FILE ]]; then
+            while read -r line; do
+                if [[ -n $line ]]; then
+                    parts=($line)
+                    track[${parts[0]}]=${parts[1]}
+                fi
+            done < $TRACKER_FILE
+        else
+            touch $TRACKER_FILE
+        fi
+    fi
+
     # seek files and compare hashes
-    echo "" > $TRACKER_FILE
+    echo "" > "$LOCAL_MAP/$TRACKER_FILE"
     FILES=()
-    for file in $(find . -type f); do
+    for file in $(find $LOCAL_MAP -type f); do
 
         # skip blank lines
         [[ -z $file ]] && continue
@@ -107,33 +205,46 @@ deploy() {
         fi
 
         # ignoring files
+        if [[ -z $IGNORE_FILES ]]; then
+            IGNORE_FILES="$LOCAL_MAP/$TRACKER_FILE"
+        else
+            IGNORE_FILES="$IGNORE_FILES $LOCAL_MAP/$TRACKER_FILE"
+        fi
         skip=0
         for ignore in $IGNORE_FILES; do
             [[ ${file##*/} == $ignore ]] && skip=1 && [[ $V_SPEC == 'true' ]] && echo "skipping $file"
         done
-
         for ignore in $IGNORE_DIRS; do
             [[ $file =~ .*\/$ignore[^/]*/.* ]] && skip=1 && [[ $V_SPEC == 'true' ]] && echo "skipping $file"
         done
-
         [[ skip -gt 0 ]] && continue
 
+        # get latest checksum no matter what, still update deploy tracker when -a (ALL) is set
         chksum=($(cksum $file))
-        if [[ chksum -ne ${track[$file]} ]]; then
-            FILES+=(${file#*/})
-        fi
-        echo "$file $chksum" >> $TRACKER_FILE
-    done
 
+        # add file to deploy if -a (ALL) is set
+        if [[ $ALL -eq 1 ]]; then
+            FILES+=(${file#*/})
+        else
+            # otherwise only add it if checksum differs
+            if [[ chksum -ne ${track[$file]} ]]; then
+                FILES+=(${file#*/})
+            fi
+        fi
+
+        # track checksum
+        echo "$file $chksum" >> "$LOCAL_MAP/$TRACKER_FILE"
+    done
     if [[ ${#FILES[@]} -eq 0 ]]; then
         printf "No files to deploy, exiting.\n"
         exit 0
     fi
-
     [[ $V_SPEC == 'true' ]] && printf "\nStarting deploy...\n"
     [[ $V_SPEC == 'true' ]] && printf "Path local: $LOCAL_MAP/\n"
     [[ $V_SPEC == 'true' ]] && printf "Path remote: $REMOTE_MAP/\n"
     printf "Starting transfer to $REMOTE_USER@$REMOTE_HOST:$REMOTE_MAP/...\n"
+
+    # Deploy files
     idx=0
     for file in ${FILES[@]}; do
         printf "[$idx] Transferring $LOCAL_MAP/$file -> $REMOTE_MAP/$file\n"
@@ -142,7 +253,7 @@ deploy() {
         # check if failed, maybe dir doesn't exist
         if [[ $? -ge 1 ]]; then
             printf "Creating non-existant dir: ${file%/*}\n"
-            ssh -i $KEY_LOC $REMOTE_USER@$REMOTE_HOST -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "mkdir -p $REMOTE_MAP/${file%/*}"
+            ssh $REMOTE_USER@$REMOTE_HOST -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "mkdir -p $REMOTE_MAP/${file%/*}"
 
             # try again with dir created
             scp -i $KEY_LOC -q $LOCAL_MAP/$file $REMOTE_USER@$REMOTE_HOST:$REMOTE_MAP/$file
@@ -156,23 +267,15 @@ deploy() {
     done
 }
 
-if [[ $ACTION -eq 2 ]]; then
-    printf "Stopping remote process...\n"
-    stop
-    printf "Finished.\n"
+printf "Deploying...\n"
+
+# deploy directory
+if [[ $RECURSIVE -eq 1 ]]; then
+    deploy_r
+
+# deploy specific files
+else
+    deploy_f
 fi
 
-if [[ $DEPLOY -eq 1 ]]; then
-    printf "Deploying...\n"
-    deploy
-    printf "Finished deploy.\n"
-    if [[ $ACTION -eq 1 ]]; then
-        printf "\n"
-    fi
-fi
-
-if [[ $ACTION -eq 1 ]]; then
-    printf "Starting remote process...\n"
-    run
-    printf "Finished."
-fi
+printf "Done\n"

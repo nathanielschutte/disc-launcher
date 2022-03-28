@@ -32,7 +32,7 @@ class Events:
         self.events[event].remove(callback)
 
         if not self.events[event]:
-            del self.events
+            del self.events[event]
 
         return self
 

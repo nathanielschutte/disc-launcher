@@ -1,13 +1,19 @@
 {
     "library": {
-        "path": "C:/Users/Nate/Documents/repos/disc-launcher/games"
+        "path": "C:/Users/Nate/Documents/projects/repos/disc-launcher/games"
     },
     "games": [
         {
             "title": "Guessing Game",
             "ref": "guess",
-            "source": "games/guessing_game",
-            "object": "guessing_game.GuessingGame"
+            "path": "guessing_game",
+            "class": "guessing_game.GuessingGame"
+        },
+        {
+            "title": "Hangman",
+            "ref": "hangman",
+            "path": "hangman",
+            "class": "hangman.HangmanGame"
         }
     ]
 }
